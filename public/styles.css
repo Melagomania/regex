@@ -1,5 +1,9 @@
 /* Styles here */
 
+* {
+  box-sizing: border-box;
+}
+
 .flex-wrapper {
   max-width: 960px;
   margin: 0 auto;
@@ -16,6 +20,7 @@
 }
 
 .drop-area {
+  padding: 15px;
   border: 10px dashed transparent;
   background-color: #888;
   flex-basis: 80%;
@@ -51,13 +56,29 @@
   border: 10px dashed #444;
 }
 
+.loaded-files-img {
+  width: 250px;
+  margin-bottom: 30px;
+}
+
 .controls {
+  display: flex;
+  align-items: center;
+  padding: 15px;
   flex-basis: 15%;
   background-color: #888;
 }
 
+.progress {
+  flex-basis: 70%;
+  margin-right: 1%;
+}
+
 .files-preview {
+  padding: 15px;
   flex-basis: 45%;
   background-color: #777;
   height: 700px;
-}
+  display: flex;
+  flex-direction: column;
+} 
