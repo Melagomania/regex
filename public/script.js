@@ -1,6 +1,8 @@
 function DropArea() {
   this.dropArea = document.getElementById('drop-area');
   this.previewContainer = document.getElementById('previews');
+  this.loadedFilesContainer = document.getElementById('loaded-files-container');
+  this.progressBar = document.getElementById('progress');
 }
 
 DropArea.prototype.init = function () {
@@ -81,7 +83,8 @@ DropArea.prototype.uploadFile = function (file) {
   var start = 0;
   var lastChunk = false;
   var myStart = 0;
-
+  
+  var _this = this;
   setTimeout(loop, 1);
   function loop() {
     var end = start + sliceSize;  
@@ -90,14 +93,15 @@ DropArea.prototype.uploadFile = function (file) {
       lastChunk = true;
     }
     var chunk = slice(file, start, end);
-    send(name, start, lastChunk, chunk);
+    send.call(_this, name, start, lastChunk, chunk); 
     if (end < size) {
       setTimeout(loop, 1);
     }
   }
 
   //fix context problem
-  function send(name, chunkStart, lastChunk, chunk, context) {
+  function send(name, chunkStart, lastChunk, chunk) {
+    var _this = this;
     var formdata = new FormData();
     var xhr = new XMLHttpRequest();
 
@@ -110,13 +114,19 @@ DropArea.prototype.uploadFile = function (file) {
     xhr.addEventListener('readystatechange', function() {
       if(this.status === 200) {
         start =  JSON.parse(xhr.responseText).expectedStart;
+        
+        
         if(JSON.parse(xhr.responseText).fileUrl) {
-          
-          if(dropArea.imgFiles.length) {
-            dropArea.uploadFile(dropArea.imgFiles.pop());
+          _this.renderLoadedFilePreview(JSON.parse(xhr.responseText).fileUrl);
+          if(_this.imgFiles.length) {
+            _this.updateProgressBar(100);
+            _this.uploadFile(_this.imgFiles.pop());
           } else {
             console.log('All pics uploaded')
           }
+        } else {
+          var percentage = _this.getPercentage(start, size);
+          _this.updateProgressBar(percentage);
         }
       }
     });
@@ -131,6 +141,15 @@ DropArea.prototype.uploadFile = function (file) {
     return slice.bind(file)(start, end);
   }
 }
+
+DropArea.prototype.updateProgressBar = function(percentage) {
+  this.progressBar.value = percentage;
+};
+
+DropArea.prototype.getPercentage = function(value, full) {
+  return value / full * 100;
+} 
+
 
 DropArea.prototype.showFilePreview = function (file) {
   var _this = this;
@@ -176,6 +195,13 @@ DropArea.prototype.renderFilePreview = function (fileInfo) {
   fragment.appendChild(previewItem);
   this.previewContainer.appendChild(fragment);
 };
+
+DropArea.prototype.renderLoadedFilePreview = function(fileUrl) {
+  var img = document.createElement('img');
+  img.classList.add('loaded-files-img');
+  img.src = fileUrl;
+  this.loadedFilesContainer.appendChild(img);
+} 
 
 DropArea.prototype.getKB = function (bytes) {
   return (bytes / 1024).toFixed(1);
