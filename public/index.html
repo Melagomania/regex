@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File upload</title>
+    <link rel="stylesheet" href="styles.css"/>
+    <script>
+        var CHUNK_SIZE = 128;
+        var ENDPOINT_URL = '/jsapiupload'
+    </script>
+</head>
+<body>
+    <div class="flex-wrapper">
+        <div class="inner-flex-wrapper">
+            <div class="drop-area" id="drop-area">
+                <section class="previews" id="previews">
+
+                </section>
+                <form action="POST" class="file-upload">
+                    <input type="file">
+                </form>
+            </div>
+            <section class="controls">
+                <div class="progress"></div>
+                <button type="button">start/pause</button>
+            </section>
+        </div>
+        <section class="files-preview">
+
+        </section>
+    </div>
+
+<script src="script.js"></script>
+</body>
+</html>
