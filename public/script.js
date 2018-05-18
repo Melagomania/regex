@@ -70,43 +70,35 @@ DropArea.prototype.uploadFile = function (file) {
   var sliceSize = CHUNK_SIZE;
   var start = 0;
   var lastChunk = false;
+  var myStart = 0;
 
   setTimeout(loop, 1);
-
   function loop() {
-    var end = start + sliceSize;
-   
+    var end = start + sliceSize;  
+    if (size - end <= 0) {
+      end = size;
+      lastChunk = true;
+    }
     var chunk = slice(file, start, end);
-    
-    if(size - end < sliceSize) {
-      s = slice(file, start, size);
-      lastChunk = true;
-    }
-
-    if(size - end === 0) {
-      lastChunk = true;
-    }
     send(name, start, lastChunk, chunk);
-
     if (end < size) {
-      start += sliceSize;
       setTimeout(loop, 1);
     }
   }
 
-  function send(name, start, lastChunk, chunk) {
+  function send(name, chunkStart, lastChunk, chunk) {
     var formdata = new FormData();
     var xhr = new XMLHttpRequest();
 
     xhr.open('POST', ENDPOINT_URL, false);
     
     formdata.append('name', name);
-    formdata.append('start', start);
+    formdata.append('start', chunkStart);
     formdata.append('lastChunk', lastChunk);
     formdata.append('chunk', chunk);
     xhr.addEventListener('readystatechange', function() {
-      if (this.status === 200) {
-        console.log(JSON.parse(xhr.responseText));
+      if(this.status === 200) {
+        start =  JSON.parse(xhr.responseText).expectedStart;        
       }
     });
     xhr.send(formdata);
@@ -120,8 +112,6 @@ DropArea.prototype.uploadFile = function (file) {
     return slice.bind(file)(start, end);
   }
 }
-
-
 
 DropArea.prototype.showFilePreview = function (file) {
   var _this = this;
