@@ -57,12 +57,22 @@ DropArea.prototype.handleDrop = function (dt) {
 
 DropArea.prototype.handleFiles = function (files) {
   var _this = this;
-  for (let i of files) {
-    _this.uploadFile(i);
+  this.imgFiles = this.getIMGFiles(files);
+  for (let i of this.imgFiles) {
     _this.showFilePreview(i);
   }
+  _this.uploadFile(this.imgFiles.pop());
 };
 
+DropArea.prototype.getIMGFiles = function(files) {
+  var imgFiles = [];
+  for(var i of files) {
+    if(i.type.includes('image')) {
+      imgFiles.push(i);
+    }
+  }
+  return imgFiles;
+};
 
 DropArea.prototype.uploadFile = function (file) {
   var name = file.name;
@@ -86,7 +96,8 @@ DropArea.prototype.uploadFile = function (file) {
     }
   }
 
-  function send(name, chunkStart, lastChunk, chunk) {
+  //fix context problem
+  function send(name, chunkStart, lastChunk, chunk, context) {
     var formdata = new FormData();
     var xhr = new XMLHttpRequest();
 
@@ -98,7 +109,15 @@ DropArea.prototype.uploadFile = function (file) {
     formdata.append('chunk', chunk);
     xhr.addEventListener('readystatechange', function() {
       if(this.status === 200) {
-        start =  JSON.parse(xhr.responseText).expectedStart;        
+        start =  JSON.parse(xhr.responseText).expectedStart;
+        if(JSON.parse(xhr.responseText).fileUrl) {
+          
+          if(dropArea.imgFiles.length) {
+            dropArea.uploadFile(dropArea.imgFiles.pop());
+          } else {
+            console.log('All pics uploaded')
+          }
+        }
       }
     });
     xhr.send(formdata);
