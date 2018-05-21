@@ -7,6 +7,8 @@ function DropArea() {
   this.fullSizedImageContainer = document.getElementById('full-sized-img-container');
   this.startStopButton = document.getElementById('button');
 
+  this.cssFiles = [];
+  this.imgFiles = [];
   this.uploadingFile = null;
   this.uploadStatus = 'none';
 }
@@ -14,7 +16,6 @@ function DropArea() {
 DropArea.prototype.init = function () {
   this.preventDefaults();
   this.setDragHandlers();
-  this.setfullSizedImgHandler();
   this.setButtonHandler();
 };
 
@@ -36,18 +37,24 @@ DropArea.prototype.setDragHandlers = function () {
 
   highlightEvents.forEach(function (eventName) {
     _this.dropArea.addEventListener(eventName, function () {
-      _this.highlight();
+      if(_this.uploadStatus !== 'uploading') {
+        _this.highlight();
+      }
     });
   });
 
   unhighlightEvents.forEach(function (eventName) {
     _this.dropArea.addEventListener(eventName, function () {
-      _this.unhighlight();
+      if(_this.uploadStatus !== 'uploading') {
+        _this.unhighlight();
+      }
     });
   });
 
   _this.dropArea.addEventListener('drop', function (e) {
-    _this.handleDrop(e.dataTransfer);
+    if(_this.uploadStatus !== 'uploading') {
+      _this.handleDrop(e.dataTransfer);
+      }    
   });
 };
 
@@ -61,20 +68,8 @@ DropArea.prototype.setButtonHandler = function() {
     } else if(_this.uploadStatus === 'uploading') {
       _this.uploadStatus = 'paused';     
     } else if(_this.uploadStatus === 'paused') {
-      _this.uploadStatus = 'uploading';     
-      _this.uploadFile(_this.uploadingFile);      
-    }
-  });
-};
-
-DropArea.prototype.setfullSizedImgHandler = function() {
-  var _this = this;
-  document.getElementsByTagName('body')[0].addEventListener('click', function(e) {
-    if(e.target.classList.contains('loaded-files-img')) {
-      var src = e.target.getAttribute('src');
-      _this.showFullSizedIMG(src);
-    } else if(e.target.classList.contains('full-sized-img-container')) {
-      _this.hideFullSizedImg();
+      _this.uploadStatus = 'uploading';
+      _this.uploadFile(_this.uploadingFile, _this.startAfterPause);      
     }
   });
 };
@@ -89,36 +84,78 @@ DropArea.prototype.unhighlight = function () {
 
 DropArea.prototype.handleDrop = function (dt) {
   var files = dt.files;
+  this.progressBar.value = 0;
+  this.removeElementsChild(this.previewContainer);
+  this.removeElementsChild(this.loadedFilesContainer);  
   this.handleFiles(files);
 };
 
-DropArea.prototype.handleFiles = function (files) {
-  this.imgFiles = this.getIMGFiles(files);
-  for (let i of this.imgFiles) {
-    this.showFilePreview(i);
+DropArea.prototype.removeElementsChild = function(element) {
+  while (element.childElementCount) {
+    element.removeChild(element.firstChild);
   }
-  this.uploadStatus = 'ready-to-start';
 };
 
-DropArea.prototype.getIMGFiles = function(files) {
+DropArea.prototype.handleFiles = function (files) {
+  this.sortFiles(files);
+  if(this.imgFiles.length) {
+    this.uploadStatus = 'ready-to-start';
+    for (const i of this.imgFiles) {
+      this.showFilePreview(i);
+    }
+  } else if(this.cssFiles.length) {
+    this.handleCssFile(this.cssFiles[0]);
+  }
+};
+
+DropArea.prototype.sortFiles = function(files) {
   var imgFiles = [];
+  
   for(var i of files) {
     if(i.type.includes('image')) {
-      imgFiles.push(i);
+      this.imgFiles.push(i);
+    } else if(i.type === 'text/css') {
+      this.cssFiles.push(i);
     }
   }
-  return imgFiles;
 };
 
-DropArea.prototype.uploadFile = function (file) {
+DropArea.prototype.handleCssFile = function (file) {
+  var _this = this;
+  var reader = new FileReader();
+  reader.readAsText(file);
+  reader.onloadend = function () {
+    var fileText = reader.result;
+    var colors = _this.findColors(fileText);
+    console.log('colors :', colors);
+    var zeroValueStrings = _this.findZeroValueStrings(fileText);
+    console.log('zeroValueStrings :', zeroValueStrings);
+  };
+};
+
+DropArea.prototype.findColors = function(string) {
+  var regex = /(#(?:[\da-f]{3}){1,2}|rgb\((?:\d{1,3},\s*){2}\d{1,3}\)|rgba\((?:\d{1,3},\s*){3}\d*\.?\d+\)|hsl\(\d{1,3}(?:,\s*\d{1,3}%){2}\)|hsla\(\d{1,3}(?:,\s*\d{1,3}%){2},\s*\d*\.?\d+\))/gi;
+  return string.match(regex);
+};
+
+DropArea.prototype.findZeroValueStrings = function (string) {
+  var regex = /\w.*\s0(px|pt|em|rem|vh|vw)(.*|$)/gm;
+  return string.match(regex);  
+};
+
+DropArea.prototype.uploadFile = function (file, startAfterPause) {
   this.uploadingFile = file;
+  if(!startAfterPause) {
+    var start = 0;
+  } else {
+    var start = startAfterPause;
+  }
+  
+  var lastChunk = false;  
   var name = file.name;
   var size = file.size;
   var sliceSize = CHUNK_SIZE;
-  var start = 0;
   var end = start + sliceSize;
-  var lastChunk = false;
-  var myStart = 0;
 
   var chunk = file.slice(start, end);
 
@@ -127,6 +164,7 @@ DropArea.prototype.uploadFile = function (file) {
 
 
   //FIXME: fix context problem
+
   function send(name, start, lastChunk, chunk) {
     var _this = this;
 
@@ -155,13 +193,7 @@ DropArea.prototype.uploadFile = function (file) {
             if(_this.uploadStatus === 'uploading') {
               send.call(_this, name, start, lastChunk, chunk);
             } else if(_this.uploadStatus === 'paused') {
-              _this.uploadingOptions = {
-                name: name,
-                chunk: chunk,
-                start: start,
-                lastChunk: lastChunk
-              }
-              console.log('_this.uploadingOptions :', _this.uploadingOptions);
+              _this.startAfterPause = start;
             }
           } else if(JSON.parse(xhr.responseText).fileUrl) {
             _this.renderLoadedFilePreview(JSON.parse(xhr.responseText).fileUrl);
@@ -195,7 +227,7 @@ DropArea.prototype.updateProgressBar = function(percentage) {
 DropArea.prototype.showFilePreview = function (file) {
   var _this = this;
   var reader = new FileReader();
-  reader.readAsDataURL(file)
+  reader.readAsDataURL(file);
   reader.onloadend = function () {
     var fileInfo = {
       imageData: reader.result,
@@ -238,35 +270,19 @@ DropArea.prototype.renderFilePreview = function (fileInfo) {
 };
 
 DropArea.prototype.renderLoadedFilePreview = function(fileUrl) {
+  var link = document.createElement('a');
+  link.setAttribute('href', fileUrl);
+  link.setAttribute('target', '_blank');  
   var img = document.createElement('img');
   img.classList.add('loaded-files-img');
   img.src = fileUrl;
-  this.loadedFilesContainer.appendChild(img);
-};
-
-
-//TODO: implement showing pics by changing their src attribute
-DropArea.prototype.showFullSizedIMG = function(imgUrl) {
-  if(this.fullSizedImageContainer.childNodes.length) {
-    this.fullSizedImageContainer.removeChild(this.fullSizedImageContainer.firstChild);
-  }
-  var img = document.createElement('img');
-  img.setAttribute('src', imgUrl);
-  img.classList.add('full-sized-img');
-  console.log(img.src);
-  
-  this.fullSizedImageContainer.appendChild(img);
-  this.fullSizedImageContainer.style.display = 'flex';
-};
-
-DropArea.prototype.hideFullSizedImg = function(params) {
-  this.fullSizedImageContainer.style.display = 'none';
+  link.appendChild(img);
+  this.loadedFilesContainer.appendChild(link);
 };
 
 DropArea.prototype.getKB = function (bytes) {
   return (bytes / 1024).toFixed(1);
-;}
-
+};
 
 
 var dropArea = new DropArea();
