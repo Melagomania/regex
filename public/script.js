@@ -4,13 +4,15 @@ function DropArea() {
   this.loadedFilesContainer = document.getElementById('loaded-files-container');
   this.progressBar = document.getElementById('progress');
   
-  this.fullSizedImageContainer = document.getElementById('full-sized-img-container');
-  this.startStopButton = document.getElementById('button');
-
+  
   this.cssFiles = [];
   this.imgFiles = [];
+  
+  this.startStopButton = document.getElementById('button');
   this.uploadingFile = null;
   this.uploadStatus = 'none';
+
+  this.cssOutput = document.getElementById('css-results-output');
 }
 
 DropArea.prototype.init = function () {
@@ -126,10 +128,27 @@ DropArea.prototype.handleCssFile = function (file) {
   reader.readAsText(file);
   reader.onloadend = function () {
     var fileText = reader.result;
-    var colors = _this.findColors(fileText);
-    console.log('colors :', colors);
-    var zeroValueStrings = _this.findZeroValueStrings(fileText);
-    console.log('zeroValueStrings :', zeroValueStrings);
+    var resultsToRender = [
+      {
+        heading:  'Unique colors',
+        content: _this.findColors(fileText)
+      },
+      {
+        heading:  'Unneeded units',
+        content: _this.findZeroValueStrings(fileText)
+      }
+    ];
+    resultsToRender.forEach(function (el) {
+      var heading = document.createElement('h2');
+      heading.textContent = el.heading;
+      _this.loadedFilesContainer.appendChild(heading);
+
+      var pre = document.createElement('pre');
+      el.content.forEach(function(el) { 
+        pre.textContent += el + '\n';
+      });
+      _this.loadedFilesContainer.appendChild(pre);
+    });
   };
 };
 
@@ -141,6 +160,10 @@ DropArea.prototype.findColors = function(string) {
 DropArea.prototype.findZeroValueStrings = function (string) {
   var regex = /\w.*\s0(px|pt|em|rem|vh|vw)(.*|$)/gm;
   return string.match(regex);  
+};
+
+DropArea.prototype.renderCssResults = function(results) {
+  
 };
 
 DropArea.prototype.uploadFile = function (file, startAfterPause) {
@@ -210,18 +233,10 @@ DropArea.prototype.uploadFile = function (file, startAfterPause) {
     });
     xhr.send(formdata);
   }
-
-  function slice(file, start, end) {
-    var slice = file.mozSlice ? file.mozSlice :
-      file.webkitSlice ? file.webkitSlice :
-      file.slice ? file.slice : undefined;
-
-    return slice.bind(file)(start, end);
-  }
 }
 
-DropArea.prototype.updateProgressBar = function(percentage) {
-  this.progressBar.value = percentage;
+DropArea.prototype.updateProgressBar = function(value) {
+  this.progressBar.value = value;
 };
 
 DropArea.prototype.showFilePreview = function (file) {
